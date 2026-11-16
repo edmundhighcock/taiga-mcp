@@ -77,7 +77,7 @@ and have a launcher export it, or use `headersHelper`. `.mcp.json`:
   "mcpServers": {
     "taiga": {
       "type": "http",
-      "url": "http://taiga-mcp.lan:8095/mcp",
+      "url": "http://192.168.0.36:8095/mcp",
       "headersHelper": "sh -c 'printf \"{\\\"Authorization\\\": \\\"Bearer %s\\\"}\" \"$(cat ~/.config/taiga/agent.token)\"'"
     }
   }

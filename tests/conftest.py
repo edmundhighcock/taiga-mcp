@@ -177,6 +177,12 @@ def agent_b(mcp_server, taiga) -> Agent:
 
 
 @pytest.fixture(scope="session")
+def agent_limited(mcp_server, taiga) -> Agent:
+    """A role identical to Agent but without modify_epic."""
+    return Agent(mcp_server.url, taiga.tokens["agent-limited"])
+
+
+@pytest.fixture(scope="session")
 def admin(mcp_server, taiga) -> Agent:
     """Superuser token: used where a test needs more than the Agent role."""
     return Agent(mcp_server.url, taiga.tokens["admin"])

@@ -1,23 +1,34 @@
-"""Epic links. Taiga needs modify_epic for them, which the Agent role lacks."""
+"""Epic links. Taiga needs modify_epic for them, which the Agent role has."""
 
 import pytest
 
 
-async def test_agent_role_cannot_link_epics_and_nothing_is_created(agent_a, raw_a, uniq):
-    msg = await agent_a.err("create_story", subject=f"{uniq} epicless", epic="Kitchen")
+async def test_role_without_modify_epic_gets_clear_error_and_nothing_is_created(
+        agent_limited, raw_admin, uniq):
+    msg = await agent_limited.err("create_story", subject=f"{uniq} epicless", epic="Kitchen")
     assert "modify_epic" in msg and "Permission denied" in msg
     # checked up front: no half-created story is left behind
-    assert [s for s in raw_a.get("/userstories", project=1, q=uniq)] == []
+    assert raw_admin.get("/userstories", project=1, q=uniq) == []
+    s = await agent_limited.ok("create_story", subject=f"{uniq} plain")
+    msg = await agent_limited.err("update_story", ref=s["ref"], epic="Kitchen")
+    assert "modify_epic" in msg and "Permission denied" in msg
 
 
-async def test_taiga_itself_403s_agent_epic_link(raw_a, raw_admin, agent_a, uniq):
+async def test_agent_links_epic_via_create_and_update(agent_a, raw_a, uniq):
+    s = await agent_a.ok("create_story", subject=f"{uniq} in kitchen", epic="Kitchen")
+    assert s["epics"] == ["Kitchen"]
+    other = await agent_a.ok("create_story", subject=f"{uniq} other")
+    assert other["epics"] == []
+    moved = await agent_a.ok("update_story", ref=other["ref"], epic="Garden")
+    assert moved["epics"] == ["Garden"]
+    epics = {e["subject"]: e["id"] for e in raw_a.get("/epics", project=1)}
+    linked = raw_a.get(f"/epics/{epics['Garden']}/related_userstories")
+    assert other["id"] in [x["user_story"] for x in linked]
+
+
+async def test_taiga_requires_both_fields_for_epic_link(raw_admin, agent_a, uniq):
     s = await agent_a.ok("create_story", subject=f"{uniq} s")
-    epics = raw_a.get("/epics", project=1)
-    e = next(x for x in epics if x["subject"] == "Kitchen")
-    r = raw_a.c.post(f"/epics/{e['id']}/related_userstories",
-                     json={"epic": e["id"], "user_story": s["id"]})
-    assert r.status_code == 403
-    # and Taiga insists on BOTH fields
+    e = next(x for x in raw_admin.get("/epics", project=1) if x["subject"] == "Kitchen")
     r = raw_admin.c.post(f"/epics/{e['id']}/related_userstories",
                          json={"user_story": s["id"]})
     assert r.status_code == 400 and "epic" in r.json()

@@ -18,8 +18,10 @@ AGENT_PERMISSIONS = [
     "view_us", "add_us", "modify_us", "comment_us",
     "view_tasks", "add_task", "modify_task", "comment_task",
     "view_issues", "add_issue", "modify_issue", "comment_issue",
-    "view_epics", "view_milestones", "view_wiki_pages", "view_wiki_links",
+    "view_epics", "modify_epic", "view_milestones", "view_wiki_pages", "view_wiki_links",
 ]
+# A role without modify_epic, to exercise the server's pre-check message.
+LIMITED_PERMISSIONS = [p for p in AGENT_PERMISSIONS if p != "modify_epic"]
 _valid = {p for p, _l in MEMBERS_PERMISSIONS}
 assert set(AGENT_PERMISSIONS) <= _valid
 
@@ -72,11 +74,16 @@ with transaction.atomic():
                   "order": (Role.objects.filter(project=project).count() + 1) * 10})
     assert sorted(agent_role.permissions) == sorted(AGENT_PERMISSIONS)
 
+    limited_role, _ = Role.objects.get_or_create(
+        project=project, slug="limited",
+        defaults={"name": "Limited", "computable": False, "permissions": LIMITED_PERMISSIONS,
+                  "order": (Role.objects.filter(project=project).count() + 1) * 10})
+
     for subj in ("Kitchen", "Garden"):
         Epic.objects.create(project=project, subject=subj, owner=su)
 
     tokens = {}
-    for name in ("agent-a", "agent-b", "admin"):
+    for name in ("agent-a", "agent-b", "agent-limited", "admin"):
         if name == "admin":
             user = su
         else:
@@ -84,7 +91,8 @@ with transaction.atomic():
                         full_name="%s (agent)" % name.capitalize(), is_active=True)
             user.set_unusable_password()
             user.save()
-            Membership.objects.create(user=user, project=project, role=agent_role,
+            Membership.objects.create(user=user, project=project,
+                                      role=limited_role if name == "agent-limited" else agent_role,
                                       is_admin=False, email=user.email)
         app = Application.objects.create(
             name=name, next_url="http://127.0.0.1/%s/taiga-token" % name)

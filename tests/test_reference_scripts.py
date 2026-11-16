@@ -24,7 +24,7 @@ def _run(script, *env):
 async def test_role_and_user_scripts_work_and_token_authenticates(mcp_server, taiga):
     from tests.conftest import Agent
     r = _run("create_agent_role.py")
-    assert "17 permissions" in r.stdout, r.stdout + r.stderr
+    assert "18 permissions" in r.stdout, r.stdout + r.stderr
     env = ("AGENT_NAME=agent-ref", "TOKEN_FILE=/tmp/agent-ref.token")
     for _ in range(2):   # second run: idempotent
         r = _run("create_agent_user.py", *env)
@@ -33,4 +33,5 @@ async def test_role_and_user_scripts_work_and_token_authenticates(mcp_server, ta
                   capture_output=True, text=True).stdout.strip()
     me = await Agent(mcp_server.url, tok).ok("whoami")
     assert me["username"] == "agent-ref" and me["roles"] == ["Agent"]
-    assert "modify_epic" not in me["project_permissions"]
+    assert "modify_epic" in me["project_permissions"]
+    assert "add_epic" not in me["project_permissions"]

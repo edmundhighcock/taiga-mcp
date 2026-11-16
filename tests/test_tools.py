@@ -20,7 +20,8 @@ async def test_whoami(agent_a, taiga):
     assert me["roles"] == ["Agent"]
     assert me["project"]["name"] == "Life"
     perms = set(me["project_permissions"])
-    assert "add_us" in perms and "modify_epic" not in perms
+    assert "add_us" in perms and "modify_epic" in perms
+    assert "add_epic" not in perms
     assert not any(p.startswith("delete_") for p in perms)
 
 
