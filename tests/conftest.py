@@ -33,7 +33,7 @@ def _free_port() -> int:
         return s.getsockname()[1]
 
 
-def _compose(*args, **kw):
+def compose(*args, **kw):
     env = {**os.environ, "TAIGA_TEST_PORT": str(TAIGA_PORT)}
     return subprocess.run([*COMPOSE, *args], env=env, **kw)
 
@@ -50,8 +50,8 @@ class Seed:
 
 @pytest.fixture(scope="session")
 def taiga() -> Seed:
-    _compose("down", "-v", "--remove-orphans", capture_output=True)
-    up = _compose("up", "-d", capture_output=True, text=True)
+    compose("down", "-v", "--remove-orphans", capture_output=True)
+    up = compose("up", "-d", capture_output=True, text=True)
     assert up.returncode == 0, up.stderr
     try:
         deadline = time.time() + 240
@@ -62,15 +62,16 @@ def taiga() -> Seed:
             except httpx.HTTPError:
                 pass
             assert time.time() < deadline, "Taiga did not come up:\n" + \
-                _compose("logs", "--tail", "40", capture_output=True, text=True).stdout
+                compose("logs", "--tail", "40", capture_output=True, text=True).stdout
             time.sleep(2)
         with open(STACK / "seed.py") as f:
-            r = _compose("exec", "-T", "back", "python", "manage.py", "shell",
+            r = compose("exec", "-T", "back", "python", "manage.py", "shell",
                          stdin=f, capture_output=True, text=True)
         line = next((ln for ln in r.stdout.splitlines()
                      if ln.startswith("SEED_RESULT ")), None)
         assert line, f"seeding failed:\n{r.stdout}\n{r.stderr}"
         d = json.loads(line[len("SEED_RESULT "):])
+        assert d["project_id"] == 1, "fresh DB expected (reference scripts use pk=1)"
         yield Seed(
             project_id=d["project_id"], slug=d["slug"],
             tokens={k: v["token"] for k, v in d["tokens"].items()},
@@ -78,7 +79,7 @@ def taiga() -> Seed:
             us_status_ids=d["us_status_ids"], task_status_ids=d["task_status_ids"])
     finally:
         if not KEEP_STACK:
-            _compose("down", "-v", "--remove-orphans", capture_output=True)
+            compose("down", "-v", "--remove-orphans", capture_output=True)
 
 
 @dataclass
