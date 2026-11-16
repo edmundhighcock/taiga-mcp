@@ -1,5 +1,5 @@
 # Throwaway Taiga 6 stack for integration tests. No rabbitmq/celery/events:
-# settings_test.py switches the events backend to postgres and celery off.
+# taiga_settings.py switches the events backend to postgres and celery off.
 name: taigamcp-test
 services:
   db:
@@ -34,7 +34,7 @@ services:
       TAIGA_SITES_SCHEME: http
       TAIGA_SITES_DOMAIN: localhost:18001
     volumes:
-      - ./settings_test.py:/taiga-back/settings/mcptest.py:ro
+      - ./taiga_settings.py:/taiga-back/settings/mcptest.py:ro
     # Skip the stock entrypoint (it chowns /taiga-back, which fails on the
     # read-only mounts); run the same steps by hand, as root.
     entrypoint: ["sh", "-c"]

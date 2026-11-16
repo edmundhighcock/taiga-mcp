@@ -95,6 +95,9 @@ async def create_story(s: Session, subject, description=None, epic=None,
 
 async def update_story(s: Session, ref, subject=None, description=None,
                        due_date=None, tags=None, epic=None) -> dict:
+    if all(v is None for v in (subject, description, due_date, tags)) and not epic:
+        raise BadRequest("Nothing to update: give at least one of subject, "
+                         "description, due_date, tags, epic.")
     d = await s.get_item("story", ref)
     fields: dict = {}
     if subject is not None:
@@ -184,6 +187,9 @@ async def create_task(s: Session, subject, story_ref=None, description=None,
 
 async def update_task(s: Session, ref, subject=None, description=None,
                       due_date=None, tags=None, story_ref=None) -> dict:
+    if all(v is None for v in (subject, description, due_date, tags, story_ref)):
+        raise BadRequest("Nothing to update: give at least one of subject, "
+                         "description, due_date, tags, story_ref.")
     d = await s.get_item("task", ref)
     fields: dict = {}
     if subject is not None:
