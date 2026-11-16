@@ -1,0 +1,46 @@
+# Throwaway Taiga 6 stack for integration tests. No rabbitmq/celery/events:
+# settings_test.py switches the events backend to postgres and celery off.
+name: taigamcp-test
+services:
+  db:
+    image: postgres:12-alpine
+    environment:
+      POSTGRES_DB: taiga
+      POSTGRES_USER: taiga
+      POSTGRES_PASSWORD: taiga-test-only
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U taiga -d taiga"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+  back:
+    # Official image, 6.0.x line (production is 6.0.10-p9; 6.0.9 is the last
+    # 6.0.x tag on Docker Hub).
+    image: taigaio/taiga-back:6.0.9
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${TAIGA_TEST_PORT:-18001}:8000"
+    environment:
+      DJANGO_SETTINGS_MODULE: settings.mcptest
+      POSTGRES_HOST: db
+      POSTGRES_DB: taiga
+      POSTGRES_USER: taiga
+      POSTGRES_PASSWORD: taiga-test-only
+      TAIGA_SECRET_KEY: test-only-secret-key-not-used-anywhere-else
+      TAIGA_SITES_SCHEME: http
+      TAIGA_SITES_DOMAIN: localhost:18001
+    volumes:
+      - ./settings_test.py:/taiga-back/settings/mcptest.py:ro
+    # Skip the stock entrypoint (it chowns /taiga-back, which fails on the
+    # read-only mounts); run the same steps by hand, as root.
+    entrypoint: ["sh", "-c"]
+    command:
+      - >-
+        python manage.py migrate --noinput &&
+        python manage.py loaddata initial_project_templates &&
+        exec gunicorn taiga.wsgi:application --bind 0.0.0.0:8000 --workers 2
+        --worker-tmp-dir /dev/shm --log-level=info --access-logfile -
